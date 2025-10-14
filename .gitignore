@@ -43,7 +43,7 @@ website/examples/*.py
 
 dev-scripts
 dev
-
+venv
 .venv
 uv.lock
 .aider*
@@ -52,3 +52,4 @@ CLAUDE.md
 .github/copilot-instructions.md
 site/
 doc/_build/
+BCS/
