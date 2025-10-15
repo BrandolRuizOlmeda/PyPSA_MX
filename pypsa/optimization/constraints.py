@@ -1805,7 +1805,7 @@ def define_reserve_global_constraint(
     if c.static.empty:
         return
 
-    reserve_types = ["rnr10", "rnrs", "rro10", "rros", "rre"]
+    reserve_types = ["rnr10", "rro10", "rsu", "rre"]
     for reserve in reserve_types:
         active = c.active_assets
         r = n.model[f"{c.name}-" + reserve].sel(name=active, snapshot=sns)

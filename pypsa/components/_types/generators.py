@@ -43,7 +43,7 @@ class Generators(Components):
 
     """
 
-    _operational_variables = ["p", "rnr10", "rnrs", "rro10", "rros", "rre"]
+    _operational_variables = ["p", "rnr10", "rro10", "rsu", "rre"]
 
     def get_bounds_pu(
         self,
@@ -56,7 +56,7 @@ class Generators(Components):
         Parameters
         ----------
         attr : string, optional
-            Attribute name for the bounds, e.g. "p", "rnr10", "rnrs", "rro10", "rros", "rre"
+            Attribute name for the bounds, e.g. "p", "rnr10", "rro10", "rsu", "rre"
 
         Returns
         -------

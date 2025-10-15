@@ -190,9 +190,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         "marginal_cost_storage",
         "spill_cost",
         "rnr10_reserve_cost",
-        "rnrs_reserve_cost",
         "rro10_reserve_cost",
-        "rros_reserve_cost",
+        "rsu_reserve_cost",
         "rre_reserve_cost",
     ]:
         for c_name, attr in lookup.query(cost_type).index:

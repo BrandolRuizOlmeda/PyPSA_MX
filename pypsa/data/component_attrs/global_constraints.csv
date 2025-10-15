@@ -7,8 +7,7 @@ carrier_attribute,string,n/a,co2_emissions,"If the global constraint is connecte
 sense,string,n/a,==,"Constraint sense; must be one of <=, == or >=",Input (optional)
 constant,float,n/a,0,"Constant for right-hand-side of constraint for optimisation period. For a CO~2~ constraint, this would be tonnes of CO~2~.",Input (optional)
 rnr10_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
-rnrs_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
 rro10_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
-rros_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
+rsu_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
 rre_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
 mu,float,currency/constant,0,Shadow price of global constraint,Output
