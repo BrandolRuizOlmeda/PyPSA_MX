@@ -44,7 +44,7 @@ class Generators(Components):
 
     """
 
-    _operational_variables = ["p"]
+    _operational_variables = ["p", "r"]
 
     def get_bounds_pu(
         self,

@@ -56,7 +56,7 @@ def define_operational_constraints_for_non_extendables(
 
     Applies to Components
     ---------------------
-    Generator (p), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
+    Generator (p), Generator (r), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
 
     Parameters
     ----------
