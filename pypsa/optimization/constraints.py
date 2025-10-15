@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
+import numpy as np
 import pandas as pd
 import xarray as xr
 from linopy import merge
@@ -1783,18 +1784,18 @@ def define_total_supply_constraints(
 
 
 def define_reserve_global_constraint(
-    n: Network, sns: Sequence, suffix: str = ""
+    n: Network, sns: pd.Index, suffix: str = ""
 ) -> None:
-    """Define global reserve requirement constraints per snapshot for different reserve types.
+    """Define global reserve requirement constraints per snapshot using Generator-r.
 
-    Uses Generator reserve variables ('rnr10', 'rnrs', etc.) and the corresponding
-    system-wide requirements stored in n.global_constraints_t.
+    Ensures that the total reserve provided by all generators equals the
+    system-wide reserve requirement stored in n.global_constraints_t.r_set.
 
     Parameters
     ----------
     n : pypsa.Network
         Network instance containing the model and component data
-    sns : Sequence
+    sns : pd.Index
         Set of snapshots for which to define the constraints
     suffix : str, default ""
         Optional suffix to append to constraint name
@@ -1804,54 +1805,30 @@ def define_reserve_global_constraint(
     if c.static.empty:
         return
 
-    active_mask = c.da.active.sel(snapshot=sns, name=c.active_assets)
+    reserve_types = ["rnr10", "rnrs", "rro10", "rros", "rre"]
+    for reserve in reserve_types:
+        active = c.active_assets
+        r = n.model[f"{c.name}-" + reserve].sel(name=active, snapshot=sns)
 
-    reserve_attrs = [
-        "rnr10",
-        "rnrs",
-        "rnr30",
-        "rnrsp",
-    ]  # add or remove as needed
+        r_set_df = n.global_constraints_t[reserve + "_set"]
 
-    for reserve_attr in reserve_attrs:
-        if reserve_attr not in n.model.variables:
-            continue  # skip if reserve variable not defined
-
-        reserve_var = n.model[f"{c.name}-{reserve_attr}"]
-
-        # align mask and variable to ensure same coordinates
-        if isinstance(reserve_var, DataArray):
-            active_mask_aligned, reserve_var_aligned = xr.align(
-                active_mask, reserve_var, join="inner"
-            )
-        else:
-            reserve_var_aligned = reserve_var
-            active_mask_aligned = active_mask.sel(name=reserve_var.coords["name"])
-
-        # get system-wide requirement
-        r_set = getattr(n.global_constraints_t, f"{reserve_attr}_set", None)
-        if r_set is None:
-            continue
-
-        if isinstance(r_set, pd.DataFrame):
+        if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
             r_set_da = xr.DataArray(
-                r_set.iloc[:, 0].values,
-                coords={"snapshot": r_set.index},
+                r_set_df.iloc[:, 0].values,
+                coords={"snapshot": r_set_df.index},
                 dims=["snapshot"],
             )
         else:
-            r_set_da = r_set
+            r_set_da = xr.DataArray(
+                np.zeros(len(sns)),
+                coords={"snapshot": sns},
+                dims=["snapshot"],
+            )
 
-        # ensure snapshots align
         r_set_da = r_set_da.reindex(snapshot=sns)
 
-        # sum across generators
-        total_reserve = reserve_var_aligned.sum(dim="name")
+        total_reserve = r.sum(dim="name")
 
         n.model.add_constraints(
-            total_reserve,
-            "==",
-            r_set_da,
-            name=f"{reserve_attr}_global{suffix}",
-            mask=active_mask_aligned,
+            total_reserve, "==", r_set_da, name=("Reserve-Requirement-" + reserve)
         )
