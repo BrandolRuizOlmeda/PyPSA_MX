@@ -46,6 +46,8 @@ r_nom_set,float,MW,n/a,"If `p_nom` is extendable in optimization, set its value.
 r_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of `p_nom` for the optimization (e.g. a minimal dispatch level for conventional power plants). Note that if `committable=False` and `p_min_pu>0`, this represents a must-run condition.",Input (optional)
 r_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of `p_nom` for the optimization (e.g. changing availability of renewable generators due to weather conditions or a de-rating of conventional power plants).,Input (optional)
 r_set,static or series,MW,n/a,Active power set point (for optimisation and power flow),Input (optional)
+reserve_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional)
+reserve_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
 p,series,MW,0.,Active power at bus (positive if net generation),Output
 q,series,MVar,0.,Reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0.,Optimised nominal capacity.,Output
