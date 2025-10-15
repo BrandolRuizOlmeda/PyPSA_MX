@@ -243,25 +243,25 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         )
         opex_terms.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
 
-    # reserve costs
-    for c_name, _attr in lookup.query("reserve_cost").index:
-        c = as_components(n, c_name)
+    # # reserve costs
+    # for c_name, _attr in lookup.query("reserve_cost").index:
+    #     c = as_components(n, c_name)
 
-        if c.static.empty:
-            continue
+    #     if c.static.empty:
+    #         continue
 
-        var_name = f"{c.name}-r"
-        if var_name not in m.variables:
-            continue
+    #     var_name = f"{c.name}-r"
+    #     if var_name not in m.variables:
+    #         continue
 
-        cost = c.da.reserve_cost.sel(snapshot=sns, name=c.active_assets)
-        if cost.size == 0 or (cost == 0).all():
-            continue
+    #     cost = c.da.reserve_cost.sel(snapshot=sns, name=c.active_assets)
+    #     if cost.size == 0 or (cost == 0).all():
+    #         continue
 
-        cost = cost * weight
+    #     cost = cost * weight
 
-        reserve = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
-        opex_terms.append((reserve * cost).sum(dim=["name", "snapshot"]))
+    #     reserve = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
+    #     opex_terms.append((reserve * cost).sum(dim=["name", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():

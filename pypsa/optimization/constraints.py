@@ -44,16 +44,51 @@ lookup = pd.read_csv(
 def define_operational_constraints_for_non_extendables(
     n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
 ) -> None:
-    """Define operational constraints (lower-/upper bound)."""
+    """Define operational constraints (lower-/upper bound) for non-extendable components.
+
+    Sets operational constraints for non-extendable components based on their bounds.
+    Supports both standard dispatch variables ('p') and reserve variables
+    ('rnr10', 'rnrs', 'rro10', 'rros', 'rre').
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    component : str
+        Name of the network component (e.g. "Generator", "Link")
+    attr : str
+        Name of the operational attribute to constrain (e.g. "p", "rnr10")
+    transmission_losses : int
+        Number of segments for transmission loss linearization; if non-zero,
+        losses are considered in the constraints for passive branches
+
+    Returns
+    -------
+    None
+
+    """
     c = as_components(n, component)
-    fix_i = c.fixed.difference(c.committables).difference(c.inactive_assets)
+
+    # Filtrar activos fijos y no inactivos
+    if hasattr(c, "non_extendables"):
+        fix_i = c.non_extendables.difference(c.inactive_assets)
+    else:
+        fix_i = c.fixed.difference(c.committables).difference(c.inactive_assets)
 
     if fix_i.empty:
         return
 
     # Seleccionar la capacidad nominal correcta según el atributo
-    if component == "Generator" and attr == "r":
-        nominal_fix = c.da.r_nom.sel(name=fix_i)
+    if component == "Generator" and attr in c._operational_variables:
+        # Busca un atributo nominal específico, si existe
+        nom_attr = f"{attr}_nom"
+        if hasattr(c.da, nom_attr):
+            nominal_fix = getattr(c.da, nom_attr).sel(name=fix_i)
+        else:
+            # Si no hay atributo específico, usa el nominal general
+            nominal_fix = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
     else:
         nominal_fix = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
 
@@ -1748,18 +1783,18 @@ def define_total_supply_constraints(
 
 
 def define_reserve_global_constraint(
-    n: Network, sns: pd.Index, suffix: str = ""
+    n: Network, sns: Sequence, suffix: str = ""
 ) -> None:
-    """Define global reserve requirement constraints per snapshot using Generator-r.
+    """Define global reserve requirement constraints per snapshot for different reserve types.
 
-    Ensures that the total reserve provided by all generators equals the
-    system-wide reserve requirement stored in n.global_constraints_t.r_set.
+    Uses Generator reserve variables ('rnr10', 'rnrs', etc.) and the corresponding
+    system-wide requirements stored in n.global_constraints_t.
 
     Parameters
     ----------
     n : pypsa.Network
         Network instance containing the model and component data
-    sns : pd.Index
+    sns : Sequence
         Set of snapshots for which to define the constraints
     suffix : str, default ""
         Optional suffix to append to constraint name
@@ -1769,23 +1804,54 @@ def define_reserve_global_constraint(
     if c.static.empty:
         return
 
-    active = c.active_assets
-    r = n.model[f"{c.name}-r"].sel(name=active, snapshot=sns)
+    active_mask = c.da.active.sel(snapshot=sns, name=c.active_assets)
 
-    r_set_df = n.global_constraints_t.r_set
-    if isinstance(r_set_df, pd.DataFrame):
-        r_set_da = xr.DataArray(
-            r_set_df["ReserveRequirement"].values,
-            coords={"snapshot": r_set_df.index},
-            dims=["snapshot"],
+    reserve_attrs = [
+        "rnr10",
+        "rnrs",
+        "rnr30",
+        "rnrsp",
+    ]  # add or remove as needed
+
+    for reserve_attr in reserve_attrs:
+        if reserve_attr not in n.model.variables:
+            continue  # skip if reserve variable not defined
+
+        reserve_var = n.model[f"{c.name}-{reserve_attr}"]
+
+        # align mask and variable to ensure same coordinates
+        if isinstance(reserve_var, DataArray):
+            active_mask_aligned, reserve_var_aligned = xr.align(
+                active_mask, reserve_var, join="inner"
+            )
+        else:
+            reserve_var_aligned = reserve_var
+            active_mask_aligned = active_mask.sel(name=reserve_var.coords["name"])
+
+        # get system-wide requirement
+        r_set = getattr(n.global_constraints_t, f"{reserve_attr}_set", None)
+        if r_set is None:
+            continue
+
+        if isinstance(r_set, pd.DataFrame):
+            r_set_da = xr.DataArray(
+                r_set.iloc[:, 0].values,
+                coords={"snapshot": r_set.index},
+                dims=["snapshot"],
+            )
+        else:
+            r_set_da = r_set
+
+        # ensure snapshots align
+        r_set_da = r_set_da.reindex(snapshot=sns)
+
+        # sum across generators
+        total_reserve = reserve_var_aligned.sum(dim="name")
+
+        n.model.add_constraints(
+            total_reserve,
+            "==",
+            r_set_da,
+            name=f"{reserve_attr}_global{suffix}",
+            mask=active_mask_aligned,
         )
-    else:
-        r_set_da = r_set_df
-
-    r_set_da = r_set_da.reindex(snapshot=sns)
-
-    total_reserve = r.sum(dim="name")
-
-    n.model.add_constraints(
-        total_reserve, "==", r_set_da, name=f"ReserveRequirement{suffix}"
-    )

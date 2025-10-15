@@ -43,17 +43,20 @@ class Generators(Components):
 
     """
 
-    _operational_variables = ["p", "r"]
+    _operational_variables = ["p", "rnr10", "rnrs", "rro10", "rros", "rre"]
 
-    def get_bounds_pu(self, attr: str = "p") -> tuple[xr.DataArray, xr.DataArray]:
+    def get_bounds_pu(
+        self,
+        attr: str = "p",
+    ) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for generators.
 
-        <!-- md:badge-version v1.2.0 -->
+        <!-- md:badge-version v1.0.0 -->
 
         Parameters
         ----------
         attr : string, optional
-            Attribute name for the bounds, e.g. "p" or "r".
+            Attribute name for the bounds, e.g. "p", "rnr10", "rnrs", "rro10", "rros", "rre"
 
         Returns
         -------
@@ -62,12 +65,25 @@ class Generators(Components):
 
         """
         if attr not in self._operational_variables:
-            attr = "p"
+            msg = (
+                f"Bounds can only be retrieved for operational attributes. "
+                f"For generators those are: {', '.join(self._operational_variables)}."
+            )
+            raise ValueError(msg)
 
-        min_attr = f"{attr}_min_pu"
-        max_attr = f"{attr}_max_pu"
+        # Construir los nombres de los bounds dinámicamente
+        min_key = f"{attr}_min_pu"
+        max_key = f"{attr}_max_pu"
 
-        return getattr(self.da, min_attr), getattr(self.da, max_attr)
+        # Si no existen columnas específicas, usar las de p por defecto
+        if not hasattr(self.da, min_key):
+            min_pu = self.da.p_min_pu
+            max_pu = self.da.p_max_pu
+        else:
+            min_pu = getattr(self.da, min_key)
+            max_pu = getattr(self.da, max_key)
+
+        return min_pu, max_pu
 
     def add(
         self,
