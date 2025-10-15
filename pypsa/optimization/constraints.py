@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 import linopy
 import pandas as pd
+import xarray as xr
 from linopy import merge
 from numpy import inf, isfinite
 from xarray import DataArray, concat
@@ -106,7 +107,6 @@ def define_operational_constraints_for_non_extendables(
     upper = max_pu * nominal_fix
 
     active = c.da.active.sel(name=fix_i, snapshot=sns)
-
     dispatch = n.model[f"{c.name}-{attr}"].sel(name=fix_i)
 
     if c.name in n.passive_branch_components and transmission_losses:
@@ -1783,3 +1783,47 @@ def define_total_supply_constraints(
         eh_selected = eh.sel(name=names)
         energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
+
+
+def define_reserve_global_constraint(
+    n: Network, sns: pd.Index, suffix: str = ""
+) -> None:
+    """Define global reserve requirement constraints per snapshot using Generator-r.
+
+    Ensures that the total reserve provided by all generators equals the
+    system-wide reserve requirement stored in n.global_constraints_t.r_set.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    suffix : str, default ""
+        Optional suffix to append to constraint name
+
+    """
+    c = as_components(n, "Generator")
+    if c.static.empty:
+        return
+
+    active = c.active_assets
+    r = n.model[f"{c.name}-r"].sel(name=active, snapshot=sns)
+
+    r_set_df = n.global_constraints_t.r_set
+    if isinstance(r_set_df, pd.DataFrame):
+        r_set_da = xr.DataArray(
+            r_set_df["ReserveRequirement"].values,
+            coords={"snapshot": r_set_df.index},
+            dims=["snapshot"],
+        )
+    else:
+        r_set_da = r_set_df
+
+    r_set_da = r_set_da.reindex(snapshot=sns)
+
+    total_reserve = r.sum(dim="name")
+
+    n.model.add_constraints(
+        total_reserve, "==", r_set_da, name=f"ReserveRequirement{suffix}"
+    )

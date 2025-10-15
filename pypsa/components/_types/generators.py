@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
-from pypsa.common import list_as_string
 from pypsa.components._types._patch import patch_add_docstring
 from pypsa.components.components import Components
 
@@ -46,18 +45,15 @@ class Generators(Components):
 
     _operational_variables = ["p", "r"]
 
-    def get_bounds_pu(
-        self,
-        attr: str = "p",
-    ) -> tuple[xr.DataArray, xr.DataArray]:
+    def get_bounds_pu(self, attr: str = "p") -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for generators.
 
-        <!-- md:badge-version v1.0.0 -->
+        <!-- md:badge-version v1.2.0 -->
 
         Parameters
         ----------
         attr : string, optional
-            Attribute name for the bounds, e.g. "p"
+            Attribute name for the bounds, e.g. "p" or "r".
 
         Returns
         -------
@@ -66,10 +62,12 @@ class Generators(Components):
 
         """
         if attr not in self._operational_variables:
-            msg = f"Bounds can only be retrieved for operational attributes. For generators those are: {list_as_string(self._operational_variables)}."
-            raise ValueError(msg)
+            attr = "p"
 
-        return self.da.p_min_pu, self.da.p_max_pu
+        min_attr = f"{attr}_min_pu"
+        max_attr = f"{attr}_max_pu"
+
+        return getattr(self.da, min_attr), getattr(self.da, max_attr)
 
     def add(
         self,

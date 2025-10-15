@@ -36,6 +36,7 @@ from pypsa.optimization.constraints import (
     define_operational_constraints_for_extendables,
     define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
+    define_reserve_global_constraint,
     define_storage_unit_constraints,
     define_store_constraints,
     define_total_supply_constraints,
@@ -241,6 +242,26 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             snapshot=sns, name=stand_by_cost.coords["name"].values
         )
         opex_terms.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
+
+    # reserve costs
+    for c_name, _attr in lookup.query("reserve_cost").index:
+        c = as_components(n, c_name)
+
+        if c.static.empty:
+            continue
+
+        var_name = f"{c.name}-r"
+        if var_name not in m.variables:
+            continue
+
+        cost = c.da.reserve_cost.sel(snapshot=sns, name=c.active_assets)
+        if cost.size == 0 or (cost == 0).all():
+            continue
+
+        cost = cost * weight
+
+        reserve = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
+        opex_terms.append((reserve * cost).sum(dim=["name", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():
@@ -547,7 +568,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
-        define_operational_variables(n, sns, "Store", "r")
 
         # CVaR auxiliary variables (only when stochastic + risk preference is set)
         define_cvar_variables(n)
@@ -609,6 +629,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
         define_total_supply_constraints(n, sns)
+        define_reserve_global_constraint(n, sns)
 
         if transmission_losses:
             for c in n.passive_branch_components:
