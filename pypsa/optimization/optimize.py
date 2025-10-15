@@ -184,8 +184,17 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         weighting = weighting.loc[sns]
     weight = xr.DataArray(weighting.values, coords={"snapshot": sns}, dims=["snapshot"])
 
-    # marginal costs, marginal storage cost, and spill cost
-    for cost_type in ["marginal_cost", "marginal_cost_storage", "spill_cost"]:
+    # marginal costs, marginal storage cost, spill cost and reserve cost
+    for cost_type in [
+        "marginal_cost",
+        "marginal_cost_storage",
+        "spill_cost",
+        "rnr10_reserve_cost",
+        "rnrs_reserve_cost",
+        "rro10_reserve_cost",
+        "rros_reserve_cost",
+        "rre_reserve_cost",
+    ]:
         for c_name, attr in lookup.query(cost_type).index:
             c = as_components(n, c_name)
 
@@ -242,26 +251,6 @@ def define_objective(n: Network, sns: pd.Index) -> None:
             snapshot=sns, name=stand_by_cost.coords["name"].values
         )
         opex_terms.append((status * stand_by_cost).sum(dim=["name", "snapshot"]))
-
-    # # reserve costs
-    # for c_name, _attr in lookup.query("reserve_cost").index:
-    #     c = as_components(n, c_name)
-
-    #     if c.static.empty:
-    #         continue
-
-    #     var_name = f"{c.name}-r"
-    #     if var_name not in m.variables:
-    #         continue
-
-    #     cost = c.da.reserve_cost.sel(snapshot=sns, name=c.active_assets)
-    #     if cost.size == 0 or (cost == 0).all():
-    #         continue
-
-    #     cost = cost * weight
-
-    #     reserve = m[var_name].sel(snapshot=sns, name=cost.coords["name"].values)
-    #     opex_terms.append((reserve * cost).sum(dim=["name", "snapshot"]))
 
     # investment
     for c_name, attr in nominal_attrs.items():
