@@ -44,61 +44,23 @@ lookup = pd.read_csv(
 def define_operational_constraints_for_non_extendables(
     n: Network, sns: pd.Index, component: str, attr: str, transmission_losses: int
 ) -> None:
-    """Define operational constraints (lower-/upper bound).
-
-    Sets operational constraints for a subset of non-extendable
-    and non-committable components based on their bounds. For each component,
-    the constraint enforces:
-
-    lower_bound ≤ dispatch ≤ upper_bound
-
-    where lower_bound and upper_bound are computed from the component's nominal
-    capacity and min/max per unit values.
-
-    Applies to Components
-    ---------------------
-    Generator (p), Generator (r), Line (s), Transformer (s), Link (p), Store (e), StorageUnit (p_dispatch, p_store, state_of_charge)
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance containing the model and component data
-    sns : pd.Index
-        Set of snapshots for which to define the constraints
-    component : str
-        Name of the network component (e.g. "Generator", "Link")
-    attr : str
-        Name of the attribute to constrain (e.g. "p" for active power)
-    transmission_losses : int
-        Number of segments for transmission loss linearization; if non-zero,
-        losses are considered in the constraints for passive branches
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    For passive branches with transmission losses, the constraint accounts for
-    the losses in both directions, see justification in [1]_.
-
-    References
-    ----------
-    [1] F. Neumann, T. Brown, "Transmission losses in power system
-        optimization models: A comparison of heuristic and exact solution methods,"
-        Applied Energy, 2022, https://doi.org/10.1016/j.apenergy.2022.118859
-
-    """
+    """Define operational constraints (lower-/upper bound)."""
     c = as_components(n, component)
     fix_i = c.fixed.difference(c.committables).difference(c.inactive_assets)
 
     if fix_i.empty:
         return
 
-    nominal_fix = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
+    # Seleccionar la capacidad nominal correcta según el atributo
+    if component == "Generator" and attr == "r":
+        nominal_fix = c.da.r_nom.sel(name=fix_i)
+    else:
+        nominal_fix = c.da[c._operational_attrs["nom"]].sel(name=fix_i)
+
+    # Obtener bounds por unidad
     min_pu, max_pu = c.get_bounds_pu(attr=attr)
-    max_pu = max_pu.sel(name=fix_i)
     min_pu = min_pu.sel(name=fix_i)
+    max_pu = max_pu.sel(name=fix_i)
     if "snapshot" in min_pu.dims:
         min_pu = min_pu.sel(snapshot=sns)
         max_pu = max_pu.sel(snapshot=sns)
