@@ -45,10 +45,7 @@ class Generators(Components):
 
     _operational_variables = ["p", "rnr10", "rro10", "rsu", "rre"]
 
-    def get_bounds_pu(
-        self,
-        attr: str = "p",
-    ) -> tuple[xr.DataArray, xr.DataArray]:
+    def get_bounds_pu(self, attr: str) -> tuple[xr.DataArray, xr.DataArray]:
         """Get per unit bounds for generators.
 
         <!-- md:badge-version v1.0.0 -->

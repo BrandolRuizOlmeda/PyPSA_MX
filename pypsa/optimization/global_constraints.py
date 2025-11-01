@@ -11,11 +11,14 @@ import re
 import warnings
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pandas as pd
+import xarray as xr
 from linopy.expressions import merge
 from numpy import isnan
 from xarray import DataArray
 
+from pypsa.components.common import as_components
 from pypsa.descriptors import nominal_attrs
 
 if TYPE_CHECKING:
@@ -860,3 +863,52 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         lhs = merge(lhs)
         sign = "=" if glc.sense == "==" else glc.sense
         m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
+
+
+def define_reserve_requirement(n: Network, sns: Sequence) -> None:
+    """Define global reserve requirement constraints per snapshot using Generator-r.
+
+    Ensures that the total reserve provided by all generators equals the
+    system-wide reserve requirement stored in n.global_constraints_t.r_set.
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance containing the model and component data
+    sns : pd.Index
+        Set of snapshots for which to define the constraints
+    suffix : str, default ""
+        Optional suffix to append to constraint name
+
+    """
+    c = as_components(n, "Generator")
+    if c.static.empty:
+        return
+
+    reserve_types = ["rnr10", "rro10", "rsu", "rre"]
+    for reserve in reserve_types:
+        active = c.active_assets
+        r = n.model[f"{c.name}-" + reserve].sel(name=active, snapshot=sns)
+
+        r_set_df = n.global_constraints_t[reserve + "_set"]
+
+        if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+            r_set_da = xr.DataArray(
+                r_set_df.iloc[:, 0].values,
+                coords={"snapshot": r_set_df.index},
+                dims=["snapshot"],
+            )
+        else:
+            r_set_da = xr.DataArray(
+                np.zeros(len(sns)),
+                coords={"snapshot": sns},
+                dims=["snapshot"],
+            )
+
+        r_set_da = r_set_da.reindex(snapshot=sns)
+
+        total_reserve = r.sum(dim="name")
+
+        n.model.add_constraints(
+            total_reserve, "==", r_set_da, name=("Reserve-Requirement-" + reserve)
+        )

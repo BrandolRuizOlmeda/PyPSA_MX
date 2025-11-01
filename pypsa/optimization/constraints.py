@@ -12,9 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import linopy
-import numpy as np
 import pandas as pd
-import xarray as xr
 from linopy import merge
 from numpy import inf, isfinite
 from xarray import DataArray, concat
@@ -195,7 +193,10 @@ def define_operational_constraints_for_extendables(
 
 
 def define_operational_constraints_for_committables(
-    n: Network, sns: pd.Index, component: str
+    n: Network,
+    sns: pd.Index,
+    component: str,
+    attr: str,
 ) -> None:
     """Define operational constraints (lower-/upper bound) for committable components.
 
@@ -219,6 +220,8 @@ def define_operational_constraints_for_committables(
         Set of snapshots for which to define the constraints
     component : str
         Name of the network component ("Generator" or "Link")
+    attr : str
+        Name of the operational attribute to constrain (e.g. "p" for active power)
 
     Returns
     -------
@@ -254,12 +257,12 @@ def define_operational_constraints_for_committables(
     start_up = n.model[f"{c.name}-start_up"]
     shut_down = n.model[f"{c.name}-shut_down"]
     status_diff = status - status.shift(snapshot=1)
-    p = n.model[f"{c.name}-p"].sel(name=com_i)
+    p = n.model[f"{c.name}-{attr}"].sel(name=com_i)
     active = c.get_activity_mask(sns, com_i)
 
     # parameters
-    nominal = c.da[c._operational_attrs["nom"]].sel(name=com_i)
-    min_pu, max_pu = c.get_bounds_pu(attr="p")
+    nominal = getattr(c.da, f"{attr}_nom").sel(name=com_i)
+    min_pu, max_pu = c.get_bounds_pu(attr=attr)
     min_pu = min_pu.sel(name=com_i, snapshot=sns)
     max_pu = max_pu.sel(name=com_i, snapshot=sns)
 
@@ -299,13 +302,13 @@ def define_operational_constraints_for_committables(
     # lower dispatch level limit
     lhs_tuple = (1, p), (-lower_p, status)
     n.model.add_constraints(
-        lhs_tuple, ">=", 0, name=f"{c.name}-com-p-lower", mask=active
+        lhs_tuple, ">=", 0, name=f"{c.name}-com-{attr}-lower", mask=active
     )
 
     # upper dispatch level limit
     lhs_tuple = (1, p), (-upper_p, status)
     n.model.add_constraints(
-        lhs_tuple, "<=", 0, name=f"{c.name}-com-p-upper", mask=active
+        lhs_tuple, "<=", 0, name=f"{c.name}-com-{attr}-upper", mask=active
     )
 
     # state-transition constraint
@@ -317,7 +320,7 @@ def define_operational_constraints_for_committables(
 
     lhs = start_up - status_diff
     n.model.add_constraints(
-        lhs, ">=", rhs, name=f"{c.name}-com-transition-start-up", mask=active
+        lhs, ">=", rhs, name=f"{c.name}-com-{attr}-transition-start-up", mask=active
     )
 
     rhs = pd.DataFrame(0, sns, com_i)
@@ -326,7 +329,7 @@ def define_operational_constraints_for_committables(
 
     lhs = shut_down + status_diff
     n.model.add_constraints(
-        lhs, ">=", rhs, name=f"{c.name}-com-transition-shut-down", mask=active
+        lhs, ">=", rhs, name=f"{c.name}-com-{attr}-transition-shut-down", mask=active
     )
 
     # min up time
@@ -344,7 +347,7 @@ def define_operational_constraints_for_committables(
             lhs,
             "<=",
             0,
-            name=f"{c.name}-com-up-time",
+            name=f"{c.name}-com-{attr}-up-time",
             mask=DataArray(active[min_up_time_i]).sel(snapshot=sns[1:]),
         )
 
@@ -364,7 +367,7 @@ def define_operational_constraints_for_committables(
             lhs,
             "<=",
             1,
-            name=f"{c.name}-com-down-time",
+            name=f"{c.name}-com-{attr}-down-time",
             mask=DataArray(active[min_down_time_i]).sel(snapshot=sns[1:]),
         )
     # up time before
@@ -375,7 +378,7 @@ def define_operational_constraints_for_committables(
         mask = pd.DataFrame(
             mask_values, index=timesteps.index, columns=timesteps.columns
         )
-        name = f"{c.name}-com-status-min_up_time_must_stay_up"
+        name = f"{c.name}-com-{attr}-status-min_up_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 1, name=name, mask=mask)
 
@@ -386,7 +389,7 @@ def define_operational_constraints_for_committables(
         mask = pd.DataFrame(
             mask_values, index=timesteps.index, columns=timesteps.columns
         )
-        name = f"{c.name}-com-status-min_down_time_must_stay_up"
+        name = f"{c.name}-com-{attr}-status-min_down_time_must_stay_up"
         mask = mask & active if active is not None else mask
         n.model.add_constraints(status, "=", 0, name=name, mask=mask)
 
@@ -430,7 +433,7 @@ def define_operational_constraints_for_committables(
             lhs,
             "<=",
             0,
-            name=f"{c.name}-com-p-before",
+            name=f"{c.name}-com-{attr}-before",
             mask=active_ce,
         )
 
@@ -445,7 +448,7 @@ def define_operational_constraints_for_committables(
             lhs,
             "<=",
             0,
-            name=f"{c.name}-com-p-current",
+            name=f"{c.name}-com-{attr}-current",
             mask=active_ce,
         )
 
@@ -462,7 +465,7 @@ def define_operational_constraints_for_committables(
             lhs,
             "<=",
             0,
-            name=f"{c.name}-com-partly-start-up",
+            name=f"{c.name}-com-{attr}-partly-start-up",
             mask=active_ce,
         )
 
@@ -479,7 +482,7 @@ def define_operational_constraints_for_committables(
             lhs,
             "<=",
             0,
-            name=f"{c.name}-com-partly-shut-down",
+            name=f"{c.name}-com-{attr}-partly-shut-down",
             mask=active_ce,
         )
 
@@ -1781,54 +1784,3 @@ def define_total_supply_constraints(
         eh_selected = eh.sel(name=names)
         energy = (p * eh_selected).sum(dim="snapshot")
         m.add_constraints(energy, "<=", e_sum_max, name=f"{c.name}-e_sum_max")
-
-
-def define_reserve_global_constraint(
-    n: Network, sns: pd.Index, suffix: str = ""
-) -> None:
-    """Define global reserve requirement constraints per snapshot using Generator-r.
-
-    Ensures that the total reserve provided by all generators equals the
-    system-wide reserve requirement stored in n.global_constraints_t.r_set.
-
-    Parameters
-    ----------
-    n : pypsa.Network
-        Network instance containing the model and component data
-    sns : pd.Index
-        Set of snapshots for which to define the constraints
-    suffix : str, default ""
-        Optional suffix to append to constraint name
-
-    """
-    c = as_components(n, "Generator")
-    if c.static.empty:
-        return
-
-    reserve_types = ["rnr10", "rro10", "rsu", "rre"]
-    for reserve in reserve_types:
-        active = c.active_assets
-        r = n.model[f"{c.name}-" + reserve].sel(name=active, snapshot=sns)
-
-        r_set_df = n.global_constraints_t[reserve + "_set"]
-
-        if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
-            r_set_da = xr.DataArray(
-                r_set_df.iloc[:, 0].values,
-                coords={"snapshot": r_set_df.index},
-                dims=["snapshot"],
-            )
-        else:
-            r_set_da = xr.DataArray(
-                np.zeros(len(sns)),
-                coords={"snapshot": sns},
-                dims=["snapshot"],
-            )
-
-        r_set_da = r_set_da.reindex(snapshot=sns)
-
-        total_reserve = r.sum(dim="name")
-
-        n.model.add_constraints(
-            total_reserve, "==", r_set_da, name=("Reserve-Requirement-" + reserve)
-        )

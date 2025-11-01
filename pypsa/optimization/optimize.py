@@ -36,7 +36,6 @@ from pypsa.optimization.constraints import (
     define_operational_constraints_for_extendables,
     define_operational_constraints_for_non_extendables,
     define_ramp_limit_constraints,
-    define_reserve_global_constraint,
     define_storage_unit_constraints,
     define_store_constraints,
     define_total_supply_constraints,
@@ -47,6 +46,7 @@ from pypsa.optimization.global_constraints import (
     define_nominal_constraints_per_bus_carrier,
     define_operational_limit,
     define_primary_energy_limit,
+    define_reserve_requirement,
     define_tech_capacity_expansion_limit,
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
@@ -548,11 +548,15 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_nominal_variables(n, c, attr)
             define_modular_variables(n, c, attr)
 
+        reserve_attrs = ["rro10", "rnr10", "rsu", "rre"]
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_variables(n, sns, c, attr)
-            define_status_variables(n, sns, c, linearized_unit_commitment)
-            define_start_up_variables(n, sns, c, linearized_unit_commitment)
-            define_shut_down_variables(n, sns, c, linearized_unit_commitment)
+            if attr in reserve_attrs:
+                continue
+            else:
+                define_status_variables(n, sns, c, linearized_unit_commitment)
+                define_start_up_variables(n, sns, c, linearized_unit_commitment)
+                define_shut_down_variables(n, sns, c, linearized_unit_commitment)
 
         define_spillage_variables(n, sns)
         define_operational_variables(n, sns, "Store", "p")
@@ -577,7 +581,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_operational_constraints_for_extendables(
                 n, sns, c, attr, transmission_losses
             )
-            define_operational_constraints_for_committables(n, sns, c)
+            define_operational_constraints_for_committables(n, sns, c, attr)
             define_ramp_limit_constraints(n, sns, c, attr)
             define_fixed_operation_constraints(n, sns, c, attr)
 
@@ -617,7 +621,6 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_storage_unit_constraints(n, sns)
         define_store_constraints(n, sns)
         define_total_supply_constraints(n, sns)
-        define_reserve_global_constraint(n, sns)
 
         if transmission_losses:
             for c in n.passive_branch_components:
@@ -631,6 +634,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
+        define_reserve_requirement(n, sns)
 
         define_objective(n, sns)
 
