@@ -42,11 +42,14 @@ from pypsa.optimization.constraints import (
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.global_constraints import (
+    CENACE_system_reserve_requirements_10min_reserve,
+    CENACE_system_reserve_requirements_secondary,
+    CENACE_system_reserve_requirements_spinning_10min_reserve,
+    CENACE_system_reserve_requirements_supplementary,
     define_growth_limit,
     define_nominal_constraints_per_bus_carrier,
     define_operational_limit,
     define_primary_energy_limit,
-    define_reserve_requirement,
     define_tech_capacity_expansion_limit,
     define_transmission_expansion_cost_limit,
     define_transmission_volume_expansion_limit,
@@ -191,7 +194,8 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         "spill_cost",
         "rnr10_reserve_cost",
         "rro10_reserve_cost",
-        "rsu_reserve_cost",
+        "rros_reserve_cost",
+        "rnrs_reserve_cost",
         "rre_reserve_cost",
     ]:
         for c_name, attr in lookup.query(cost_type).index:
@@ -548,7 +552,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_nominal_variables(n, c, attr)
             define_modular_variables(n, c, attr)
 
-        reserve_attrs = ["rro10", "rnr10", "rsu", "rre"]
+        reserve_attrs = ["rro10", "rnr10", "rros", "rnrs", "rre"]
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_variables(n, sns, c, attr)
             if attr in reserve_attrs:
@@ -634,7 +638,10 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         define_operational_limit(n, sns)
         define_nominal_constraints_per_bus_carrier(n, sns)
         define_growth_limit(n, sns)
-        define_reserve_requirement(n, sns)
+        CENACE_system_reserve_requirements_spinning_10min_reserve(n, sns)
+        CENACE_system_reserve_requirements_10min_reserve(n, sns)
+        CENACE_system_reserve_requirements_supplementary(n, sns)
+        CENACE_system_reserve_requirements_secondary(n, sns)
 
         define_objective(n, sns)
 

@@ -865,50 +865,300 @@ def define_transmission_expansion_cost_limit(n: Network, sns: pd.Index) -> None:
         m.add_constraints(lhs, sign, glc.constant, name=f"GlobalConstraint-{name}")
 
 
-def define_reserve_requirement(n: Network, sns: Sequence) -> None:
-    """Define global reserve requirement constraints per snapshot using Generator-r.
+# def define_reserve_requirement(n: Network, sns: Sequence) -> None:
+#     """Define global reserve requirement constraints per snapshot using Generator-r.
 
-    Ensures that the total reserve provided by all generators equals the
-    system-wide reserve requirement stored in n.global_constraints_t.r_set.
+#     Ensures that the total reserve provided by all generators equals the
+#     system-wide reserve requirement stored in n.global_constraints_t.r_set.
+
+#     Parameters
+#     ----------
+#     n : pypsa.Network
+#         Network instance containing the model and component data
+#     sns : pd.Index
+#         Set of snapshots for which to define the constraints
+#     suffix : str, default ""
+#         Optional suffix to append to constraint name
+
+#     """
+#     c = as_components(n, "Generator")
+#     if c.static.empty:
+#         return
+
+#     reserve_types = ["rnr10", "rro10", "rsu", "rre"]
+#     for reserve in reserve_types:
+#         active = c.active_assets
+#         r = n.model[f"{c.name}-" + reserve].sel(name=active, snapshot=sns)
+
+#         r_set_df = n.global_constraints_t[reserve + "_set"]
+
+#         if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+#             r_set_da = xr.DataArray(
+#                 r_set_df.iloc[:, 0].values,
+#                 coords={"snapshot": r_set_df.index},
+#                 dims=["snapshot"],
+#             )
+#         else:
+#             r_set_da = xr.DataArray(
+#                 np.zeros(len(sns)),
+#                 coords={"snapshot": sns},
+#                 dims=["snapshot"],
+#             )
+
+#         r_set_da = r_set_da.reindex(snapshot=sns)
+
+#         total_reserve = r.sum(dim="name")
+
+#         n.model.add_constraints(
+#             total_reserve, "==", r_set_da, name=("Reserve-Requirement-" + reserve)
+#         )
+
+
+def CENACE_system_reserve_requirements_spinning_10min_reserve(
+    n: Network, sns: Sequence
+) -> None:
+    """Define global reserve requirement constraints for the 10 min spinning reserve.
+
+    This ensures that the total reserve provided by the 'contributing_reserves'
+    meets the system-wide requirement specified in n.global_constraints_t[f"{reserve_name}_set"].
 
     Parameters
     ----------
     n : pypsa.Network
-        Network instance containing the model and component data
+        Network instance.
     sns : pd.Index
-        Set of snapshots for which to define the constraints
-    suffix : str, default ""
-        Optional suffix to append to constraint name
+        Set of snapshots.
 
     """
     c = as_components(n, "Generator")
-    if c.static.empty:
+    if c.empty:
         return
 
-    reserve_types = ["rnr10", "rro10", "rsu", "rre"]
-    for reserve in reserve_types:
-        active = c.active_assets
-        r = n.model[f"{c.name}-" + reserve].sel(name=active, snapshot=sns)
+    active = c.active_assets
+    rro10 = n.model[f"{c.name}-rro10"].sel(name=active, snapshot=sns)
+    rre = n.model[f"{c.name}-rre"].sel(name=active, snapshot=sns)
 
-        r_set_df = n.global_constraints_t[reserve + "_set"]
-
-        if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
-            r_set_da = xr.DataArray(
-                r_set_df.iloc[:, 0].values,
-                coords={"snapshot": r_set_df.index},
-                dims=["snapshot"],
-            )
-        else:
-            r_set_da = xr.DataArray(
-                np.zeros(len(sns)),
-                coords={"snapshot": sns},
-                dims=["snapshot"],
-            )
-
-        r_set_da = r_set_da.reindex(snapshot=sns)
-
-        total_reserve = r.sum(dim="name")
-
-        n.model.add_constraints(
-            total_reserve, "==", r_set_da, name=("Reserve-Requirement-" + reserve)
+    r_set_df = n.global_constraints_t["rro10_set"]
+    if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+        r_set_da = xr.DataArray(
+            r_set_df.iloc[:, 0].values,
+            coords={"snapshot": r_set_df.index},
+            dims=["snapshot"],
         )
+    else:
+        r_set_da = xr.DataArray(
+            np.zeros(len(sns)),
+            coords={"snapshot": sns},
+            dims=["snapshot"],
+        )
+    cenace_rro10 = r_set_da.reindex(snapshot=sns)
+
+    total_reserve = rro10.sum(dim="name") + rre.sum(dim="name")
+    total_requirement = cenace_rro10
+
+    n.model.add_constraints(
+        total_reserve,
+        ">=",
+        total_requirement,
+        name=("CENACE-system-reserve-requirements-rro10"),
+    )
+
+
+def CENACE_system_reserve_requirements_10min_reserve(n: Network, sns: Sequence) -> None:
+    """Define global reserve requirement constraints for the 10 min spinning reserve.
+
+    This ensures that the total reserve provided by the 'contributing_reserves'
+    meets the system-wide requirement specified in n.global_constraints_t[f"{reserve_name}_set"].
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    sns : pd.Index
+        Set of snapshots.
+
+    """
+    c = as_components(n, "Generator")
+    if c.empty:
+        return
+
+    active = c.active_assets
+    rro10 = n.model[f"{c.name}-rro10"].sel(name=active, snapshot=sns)
+    rre = n.model[f"{c.name}-rre"].sel(name=active, snapshot=sns)
+    rnr10 = n.model[f"{c.name}-rnr10"].sel(name=active, snapshot=sns)
+
+    r_set_df = n.global_constraints_t["rro10_set"]
+    if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+        r_set_da = xr.DataArray(
+            r_set_df.iloc[:, 0].values,
+            coords={"snapshot": r_set_df.index},
+            dims=["snapshot"],
+        )
+    else:
+        r_set_da = xr.DataArray(
+            np.zeros(len(sns)),
+            coords={"snapshot": sns},
+            dims=["snapshot"],
+        )
+    cenace_rro10 = r_set_da.reindex(snapshot=sns)
+
+    r_set_df = n.global_constraints_t["r10_set"]
+    if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+        r_set_da = xr.DataArray(
+            r_set_df.iloc[:, 0].values,
+            coords={"snapshot": r_set_df.index},
+            dims=["snapshot"],
+        )
+    else:
+        r_set_da = xr.DataArray(
+            np.zeros(len(sns)),
+            coords={"snapshot": sns},
+            dims=["snapshot"],
+        )
+    cenace_r10 = r_set_da.reindex(snapshot=sns)
+
+    total_reserve = rro10.sum(dim="name") + rre.sum(dim="name") + rnr10.sum(dim="name")
+    total_requirement = cenace_rro10 + cenace_r10
+
+    n.model.add_constraints(
+        total_reserve,
+        ">=",
+        total_requirement,
+        name=("CENACE-system-reserve-requirements-r10"),
+    )
+
+
+def CENACE_system_reserve_requirements_supplementary(n: Network, sns: Sequence) -> None:
+    """Define global reserve requirement constraints for the 10 min spinning reserve.
+
+    This ensures that the total reserve provided by the 'contributing_reserves'
+    meets the system-wide requirement specified in n.global_constraints_t[f"{reserve_name}_set"].
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    sns : pd.Index
+        Set of snapshots.
+
+    """
+    c = as_components(n, "Generator")
+    if c.empty:
+        return
+
+    active = c.active_assets
+    rro10 = n.model[f"{c.name}-rro10"].sel(name=active, snapshot=sns)
+    rre = n.model[f"{c.name}-rre"].sel(name=active, snapshot=sns)
+    rnr10 = n.model[f"{c.name}-rnr10"].sel(name=active, snapshot=sns)
+    rros = n.model[f"{c.name}-rros"].sel(name=active, snapshot=sns)
+    rnrs = n.model[f"{c.name}-rnrs"].sel(name=active, snapshot=sns)
+
+    r_set_df = n.global_constraints_t["rro10_set"]
+    if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+        r_set_da = xr.DataArray(
+            r_set_df.iloc[:, 0].values,
+            coords={"snapshot": r_set_df.index},
+            dims=["snapshot"],
+        )
+    else:
+        r_set_da = xr.DataArray(
+            np.zeros(len(sns)),
+            coords={"snapshot": sns},
+            dims=["snapshot"],
+        )
+    cenace_rro10 = r_set_da.reindex(snapshot=sns)
+
+    r_set_df = n.global_constraints_t["r10_set"]
+    if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+        r_set_da = xr.DataArray(
+            r_set_df.iloc[:, 0].values,
+            coords={"snapshot": r_set_df.index},
+            dims=["snapshot"],
+        )
+    else:
+        r_set_da = xr.DataArray(
+            np.zeros(len(sns)),
+            coords={"snapshot": sns},
+            dims=["snapshot"],
+        )
+    cenace_r10 = r_set_da.reindex(snapshot=sns)
+
+    r_set_df = n.global_constraints_t["rs_set"]
+    if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+        r_set_da = xr.DataArray(
+            r_set_df.iloc[:, 0].values,
+            coords={"snapshot": r_set_df.index},
+            dims=["snapshot"],
+        )
+    else:
+        r_set_da = xr.DataArray(
+            np.zeros(len(sns)),
+            coords={"snapshot": sns},
+            dims=["snapshot"],
+        )
+    cenace_rs = r_set_da.reindex(snapshot=sns)
+
+    total_reserve = (
+        rro10.sum(dim="name")
+        + rre.sum(dim="name")
+        + rnr10.sum(dim="name")
+        + rros.sum(dim="name")
+        + rnrs.sum(dim="name")
+    )
+    total_requirement = cenace_rro10 + cenace_r10 + cenace_rs
+
+    n.model.add_constraints(
+        total_reserve,
+        ">=",
+        total_requirement,
+        name=("CENACE-system-reserve-requirements-supplementary"),
+    )
+
+
+def CENACE_system_reserve_requirements_secondary(n: Network, sns: Sequence) -> None:
+    """Define global reserve requirement constraints for the 10 min spinning reserve.
+
+    This ensures that the total reserve provided by the 'contributing_reserves'
+    meets the system-wide requirement specified in n.global_constraints_t[f"{reserve_name}_set"].
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    sns : pd.Index
+        Set of snapshots.
+
+    """
+    c = as_components(n, "Generator")
+    if c.empty:
+        return
+
+    active = c.active_assets
+    rre = n.model[f"{c.name}-rre"].sel(name=active, snapshot=sns)
+
+    r_set_df = n.global_constraints_t["rre_set"]
+
+    if isinstance(r_set_df, pd.DataFrame) and not r_set_df.empty:
+        r_set_da = xr.DataArray(
+            r_set_df.iloc[:, 0].values,
+            coords={"snapshot": r_set_df.index},
+            dims=["snapshot"],
+        )
+    else:
+        r_set_da = xr.DataArray(
+            np.zeros(len(sns)),
+            coords={"snapshot": sns},
+            dims=["snapshot"],
+        )
+
+    cenace_rre = r_set_da.reindex(snapshot=sns)
+
+    total_reserve = rre.sum(dim="name")
+    total_requirement = cenace_rre
+
+    n.model.add_constraints(
+        total_reserve,
+        ">=",
+        total_requirement,
+        name=("CENACE-system-reserve-requirements-secondary"),
+    )
