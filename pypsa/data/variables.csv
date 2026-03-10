@@ -1,4 +1,4 @@
-component,variable,marginal_cost,marginal_cost_quadratic,spill_cost,marginal_cost_storage,nominal,handle_separately,rnr10_reserve_cost,rnr10_reserve_cost_quadratic,rro10_reserve_cost,rro10_reserve_cost_quadratic,rros_reserve_cost,rros_reserve_cost,rnrs_reserve_cost,rnrs_reserve_cost,rre_reserve_cost,rre_reserve_cost_quadratic
+component,variable,marginal_cost,marginal_cost_quadratic,spill_cost,marginal_cost_storage,nominal,handle_separately,rnr10_reserve_cost,rnr10_reserve_cost_quadratic,rro10_reserve_cost,rro10_reserve_cost_quadratic,rros_reserve_cost,rros_reserve_cost_quadratic,rnrs_reserve_cost,rnrs_reserve_cost_quadratic,rre_reserve_cost,rre_reserve_cost_quadratic
 Generator,p,True,True,False,False,False,False,False,False,False,False,False,False,False,False,False,False
 Generator,rnr10,False,False,False,False,False,False,True,True,False,False,False,False,False,False,False,False
 Generator,rro10,False,False,False,False,False,False,False,False,True,True,False,False,False,False,False,False

@@ -25,8 +25,8 @@ lifetime,float,years,inf,Lifetime of the generator.,Input (optional)
 capital_cost,float,currency/MW,0,"Fixed period costs of extending `p_nom` by 1 MW, including periodized investment costs and periodic fixed O&M costs (e.g. annuitized investment costs).",Input (optional)
 efficiency,static or series,per unit,1,"Ratio output and primary energy carrier input (e.g. 0.4 MWh~elec~/MWh~fuel~). This is required for global constraints on primary energy in optimization.",Input (optional)
 committable,boolean,n/a,False,Apply unit commitment constraints. This is only possible with `p_nom_extendable=False`.,Input (optional)
-start_up_cost,float,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
-shut_down_cost,float,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
+start_up_cost,static or series,currency,0,Cost to start up the generator. Only used if `committable=True`.,Input (optional)
+shut_down_cost,static or series,currency,0,Cost to shut down the generator. Only used if `committable=True`.,Input (optional)
 stand_by_cost,static or series,currency/h,0.,Stand-by cost for running the generator. This cost is incurred whenever the status is 1 (including when the dispatch decision is zero).,Input (optional)
 min_up_time,int,snapshots,0,Minimum number of snapshots for status to be 1. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
 min_down_time,int,snapshots,0,Minimum number of snapshots for status to be 0. Only used if `committable=True`. Does not consider snapshot weightings.,Input (optional)
@@ -68,6 +68,8 @@ rros_nom_set,float,MW,n/a,"If `rros_nom` is extendable in optimization, set its 
 rros_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of `rros_nom` for the optimization (e.g. a minimal dispatch level for conventional power plants). Note that if `committable=False` and `p_min_pu>0`, this represents a must-run condition.",Input (optional)
 rros_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of `rros_nom` for the optimization (e.g. changing availability of renewable generators due to weather conditions or a de-rating of conventional power plants).,Input (optional)
 rros_set,static or series,MW,n/a,Active power set point (for optimisation and power flow),Input (optional)
+rros_reserve_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional)
+rros_reserve_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
 rnrs_nom,float,MW,0,Nominal power for limits  on `rnrs` in optimization. Ignored if `rnrs_nom_extendable=True`.,Input (optional)
 rnrs_nom_mod,float,MW,0,Nominal power of the generator module (e.g. fixed unit size of a nuclear power plant). Introduces integer variables if set.,Input (optional)
 rnrs_nom_extendable,boolean,n/a,False,Switch to allow capacity `rnrs_nom` to be extended in optimization.,Input (optional)
@@ -91,6 +93,11 @@ rre_set,static or series,MW,n/a,Active power set point (for optimisation and pow
 rre_reserve_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional)
 rre_reserve_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
 p,series,MW,0.,Active power at bus (positive if net generation),Output
+rro10,series,MW,0.,Active power at bus (positive if net generation),Output
+rnr10,series,MW,0.,Active power at bus (positive if net generation),Output
+rros,series,MW,0.,Active power at bus (positive if net generation),Output
+rnrs,series,MW,0.,Active power at bus (positive if net generation),Output
+rre,series,MW,0.,Active power at bus (positive if net generation),Output
 q,series,MVar,0.,Reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0.,Optimised nominal capacity.,Output
 status,series,n/a,1,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output
