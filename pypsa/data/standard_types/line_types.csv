@@ -58,8 +58,11 @@ HTLS 4-bundle 380.0,50.,0.02,0.26,13.9,4.0,ol,240,"HTLS based on line Oudon-Taut
 Al/St 560/50 4-bundle 750.0,50.,0.013,0.276,13.13,4.16,ol,560,"Oeding and Oswald ""Elektrische Kraftwerke und Netze"", 2011, Appendix"
 HVDC XLPE 1000,0.,0.0022,0.000001,10000,1.638,,2500,"Regional Group North Sea, “Offshore Transmission Technology,”ENTSO-E AISBL, Brussels, Belgium, Tech. Rep., 2011. P.21-22"
 HVDC Oil filled 1400,0.,0.00264,0.000001,10000,2.8,,3000,"Regional Group North Sea, “Offshore Transmission Technology,”ENTSO-E AISBL, Brussels, Belgium, Tech. Rep., 2011. P.19-20"
-266-ACSR 115,60.,0.285,0.420,5.40,0.440,ol,134,ACSR Merlin (E_115kV 60Hz)
-477-ACSR 115,60.,0.144,0.408,5.76,0.659,ol,242,ACSR Hawk (E_115kV 60Hz)
-795-ACSR 115,60.,0.086,0.396,6.12,0.880,ol,402,ACSR Drake (E_115kV 60Hz)
-1113-ACSR 115,60.,0.062,0.384,6.36,1.100,ol,564,ACSR BlueJay (E_115kV 60Hz)
-1113-ACSR 230,60.,0.062,0.456,5.40,1.100,ol,564,ACSR BlueJay (E_230kV 60Hz)
+1113-ACSR 115.0,60.,0.0847,0.418,3.937,1.050,ol,1113,Glover/60Hz/Archivo
+266-ACSR 115.0,60.,0.3429,0.503,3.500,0.420,ol,267,Glover/60Hz/Archivo
+477-ACSR 115.0,60.,0.1601,0.462,3.692,0.690,ol,477,Glover/60Hz/Archivo
+795-ACSR 115.0,60.,0.1009,0.430,3.786,0.900,ol,795,Glover/60Hz/Archivo
+1113-ACSR 230.0,60.,0.0847,0.471,3.480,1.050,ol,1113,Glover/60Hz/Archivo
+266-ACSR 230.0,60.,0.3429,0.555,3.133,0.420,ol,267,Glover/60Hz/Archivo
+477-ACSR 230.0,60.,0.1601,0.515,3.300,0.690,ol,477,Glover/60Hz/Archivo
+795-ACSR 230.0,60.,0.1009,0.483,3.359,0.900,ol,795,Glover/60Hz/Archivo
