@@ -42,6 +42,7 @@ from pypsa.optimization.constraints import (
 )
 from pypsa.optimization.expressions import StatisticExpressionsAccessor
 from pypsa.optimization.global_constraints import (
+    CENACE_inertia_requirements,
     CENACE_system_reserve_requirements_10min_reserve,
     CENACE_system_reserve_requirements_secondary,
     CENACE_system_reserve_requirements_spinning_10min_reserve,
@@ -197,6 +198,7 @@ def define_objective(n: Network, sns: pd.Index) -> None:
         "rros_reserve_cost",
         "rnrs_reserve_cost",
         "rre_reserve_cost",
+        "h_cost",
     ]:
         for c_name, attr in lookup.query(cost_type).index:
             c = as_components(n, c_name)
@@ -552,7 +554,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
             define_nominal_variables(n, c, attr)
             define_modular_variables(n, c, attr)
 
-        reserve_attrs = ["rro10", "rnr10", "rros", "rnrs", "rre"]
+        reserve_attrs = ["rro10", "rnr10", "rros", "rnrs", "rre", "h"]
         for c, attr in lookup.query("not nominal and not handle_separately").index:
             define_operational_variables(n, sns, c, attr)
             if attr in reserve_attrs:
@@ -642,6 +644,7 @@ class OptimizationAccessor(OptimizationAbstractMixin):
         CENACE_system_reserve_requirements_10min_reserve(n, sns)
         CENACE_system_reserve_requirements_supplementary(n, sns)
         CENACE_system_reserve_requirements_secondary(n, sns)
+        CENACE_inertia_requirements(n, sns)
 
         define_objective(n, sns)
 

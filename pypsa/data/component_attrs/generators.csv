@@ -92,12 +92,24 @@ rre_max_pu,static or series,per unit,1,The maximum output for each snapshot per 
 rre_set,static or series,MW,n/a,Active power set point (for optimisation and power flow),Input (optional)
 rre_reserve_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional)
 rre_reserve_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
+h_nom,float,s,0,Nominal power for limits  on `rre` in optimization. Ignored if `h_nom_extendable=True`.,Input (optional)
+h_nom_mod,float,s,0,Nominal power of the generator module (e.g. fixed unit size of a nuclear power plant). Introduces integer variables if set.,Input (optional)
+h_nom_extendable,boolean,n/a,False,Switch to allow capacity `h_nom` to be extended in optimization.,Input (optional)
+h_nom_min,float,s,0,"If `h_nom` is extendable in optimization, set its minimum value.",Input (optional)
+h_nom_max,float,s,inf,"If `h_nom` is extendable in optimization, set its maximum value (e.g. limited by technical potential).",Input (optional)
+h_nom_set,float,s,n/a,"If `h_nom` is extendable in optimization, set its value.",Input (optional)
+h_min_pu,static or series,per unit,0.,"The minimum output for each snapshot per unit of `h_nom` for the optimization (e.g. a minimal dispatch level for conventional power plants). Note that if `committable=False` and `p_min_pu>0`, this represents a must-run condition.",Input (optional)
+h_max_pu,static or series,per unit,1,The maximum output for each snapshot per unit of `h_nom` for the optimization (e.g. changing availability of renewable generators due to weather conditions or a de-rating of conventional power plants).,Input (optional)
+h_set,static or series,s,n/a,Active power set point (for optimisation and power flow),Input (optional)
+h_cost,static or series,currency/MWh,0.,Marginal cost of production of 1 MWh.,Input (optional)
+h_cost_quadratic,static or series,currency/MWh,0.,Quadratic marginal cost of production of 1 MWh.,Input (optional)
 p,series,MW,0.,Active power at bus (positive if net generation),Output
 rro10,series,MW,0.,Active power at bus (positive if net generation),Output
 rnr10,series,MW,0.,Active power at bus (positive if net generation),Output
 rros,series,MW,0.,Active power at bus (positive if net generation),Output
 rnrs,series,MW,0.,Active power at bus (positive if net generation),Output
 rre,series,MW,0.,Active power at bus (positive if net generation),Output
+h,series,s,0.,Active power at bus (positive if net generation),Output
 q,series,MVar,0.,Reactive power (positive if net generation),Output
 p_nom_opt,float,MW,0.,Optimised nominal capacity.,Output
 status,series,n/a,1,"Status in the snapshot (1 is on, 0 is off). Only returned if `committable=True`.",Output

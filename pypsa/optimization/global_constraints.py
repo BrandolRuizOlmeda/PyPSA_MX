@@ -1162,3 +1162,52 @@ def CENACE_system_reserve_requirements_secondary(n: Network, sns: Sequence) -> N
         total_requirement,
         name=("CENACE-system-reserve-requirements-secondary"),
     )
+
+
+def CENACE_inertia_requirements(n: Network, sns: Sequence) -> None:
+    """Define global reserve requirement constraints for inertial response.
+
+    This ensures that the total reserve provided by the 'contributing_reserves'
+    meets the system-wide requirement specified in n.global_constraints_t[f"{reserve_name}_set"].
+
+    Parameters
+    ----------
+    n : pypsa.Network
+        Network instance.
+    sns : pd.Index
+        Set of snapshots.
+
+    """
+    c = as_components(n, "Generator")
+    if c.empty:
+        return
+
+    active = c.active_assets
+    h = n.model[f"{c.name}-h"].sel(name=active, snapshot=sns)
+
+    h_set_df = n.global_constraints_t["h_set"]
+
+    if isinstance(h_set_df, pd.DataFrame) and not h_set_df.empty:
+        h_set_da = xr.DataArray(
+            h_set_df.iloc[:, 0].values,
+            coords={"snapshot": h_set_df.index},
+            dims=["snapshot"],
+        )
+    else:
+        h_set_da = xr.DataArray(
+            np.zeros(len(sns)),
+            coords={"snapshot": sns},
+            dims=["snapshot"],
+        )
+
+    h_req = h_set_da.reindex(snapshot=sns)
+
+    total_reserve = h.sum(dim="name")
+    total_requirement = h_req
+
+    n.model.add_constraints(
+        total_reserve,
+        ">=",
+        total_requirement,
+        name=("CENACE-system-inertia-requirements"),
+    )

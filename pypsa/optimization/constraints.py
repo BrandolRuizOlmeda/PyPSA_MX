@@ -47,7 +47,7 @@ def define_operational_constraints_for_non_extendables(
 
     Sets operational constraints for non-extendable components based on their bounds.
     Supports both standard dispatch variables ('p') and reserve variables
-    ('rnr10', 'rnrs', 'rro10', 'rros', 'rre').
+    ('rnr10', 'rnrs', 'rro10', 'rros', 'rre', 'h').
 
     Parameters
     ----------
@@ -112,12 +112,54 @@ def define_operational_constraints_for_non_extendables(
     else:
         lhs_lower = lhs_upper = dispatch
 
-    n.model.add_constraints(
-        lhs_lower, ">=", lower, name=f"{c.name}-fix-{attr}-lower", mask=active
-    )
-    n.model.add_constraints(
-        lhs_upper, "<=", upper, name=f"{c.name}-fix-{attr}-upper", mask=active
-    )
+    # --- START OF NEW LOGIC ---
+    # Separate generators that have unit commitment from those that are must-run
+    com_i = c.committables.intersection(fix_i)
+    non_com_i = fix_i.difference(com_i)
+    has_status = f"{c.name}-status" in n.model.variables
+
+    # 1. Committables: Multiply the lower and upper bounds by 'status'
+    if not com_i.empty and has_status:
+        status = n.model[f"{c.name}-status"].sel(name=com_i)
+
+        # Linopy tuple format: (coefficient, variable).
+        # (1 * var) - (lower * status) >= 0  =>  var >= lower * status
+        lhs_lower_com = (1, lhs_lower.sel(name=com_i)), (-lower.sel(name=com_i), status)
+        n.model.add_constraints(
+            lhs_lower_com,
+            ">=",
+            0,
+            name=f"{c.name}-fix-{attr}-lower_com",
+            mask=active.sel(name=com_i),
+        )
+
+        # (1 * var) - (upper * status) <= 0  =>  var <= upper * status
+        lhs_upper_com = (1, lhs_upper.sel(name=com_i)), (-upper.sel(name=com_i), status)
+        n.model.add_constraints(
+            lhs_upper_com,
+            "<=",
+            0,
+            name=f"{c.name}-fix-{attr}-upper_com",
+            mask=active.sel(name=com_i),
+        )
+
+    # 2. Non-Committables (Must-Run): Keep the standard uncoupled bounds
+    if not non_com_i.empty or not has_status:
+        n.model.add_constraints(
+            lhs_lower.sel(name=non_com_i),
+            ">=",
+            lower.sel(name=non_com_i),
+            name=f"{c.name}-fix-{attr}-lower",
+            mask=active.sel(name=non_com_i),
+        )
+        n.model.add_constraints(
+            lhs_upper.sel(name=non_com_i),
+            "<=",
+            upper.sel(name=non_com_i),
+            name=f"{c.name}-fix-{attr}-upper",
+            mask=active.sel(name=non_com_i),
+        )
+    # --- END OF NEW LOGIC ---
 
 
 def define_operational_constraints_for_extendables(

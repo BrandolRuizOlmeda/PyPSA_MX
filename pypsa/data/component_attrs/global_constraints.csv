@@ -10,4 +10,5 @@ r10_set,static or series,MW,0,Reserve power required for the system.,Input (opti
 rro10_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
 rs_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
 rre_set,static or series,MW,0,Reserve power required for the system.,Input (optional)
+h_set,static or series,s,0,Reserve power required for the system.,Input (optional)
 mu,float,currency/constant,0,Shadow price of global constraint,Output
